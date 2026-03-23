@@ -16,7 +16,6 @@ dp = Dispatcher()
 class Form(StatesGroup):
     park = State()
     description = State()
-    photo = State()          # ←←← ЭТО БЫЛО ПРОПУЩЕНО
 
 parks = {
     "central": "Центральный парк",
@@ -52,8 +51,8 @@ async def choose_park(callback: CallbackQuery, state: FSMContext):
 @dp.message(Form.description)
 async def get_description(message: Message, state: FSMContext):
     await state.update_data(description=message.text)
-    await message.answer("Прикрепите фото проблемы (или напишите «без фото»):")
-    await state.set_state(Form.photo)
+    await message.answer("Прикрепите фото проблемы (или напишите **«без фото»**):")
+    await state.set_state(Form.photo)   # ← следующее состояние
 
 @dp.message(Form.photo)
 async def get_photo(message: Message, state: FSMContext):
