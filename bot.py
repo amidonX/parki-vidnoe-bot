@@ -2,7 +2,7 @@ import os
 import asyncio
 from datetime import datetime
 from aiogram import Bot, Dispatcher, F
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -15,8 +15,8 @@ dp = Dispatcher()
 
 class Form(StatesGroup):
     park = State()
+    location = State()      # для Высоты
     description = State()
-    photo = State()                     # ← ЭТО ДОЛЖНО БЫТЬ!
 
 parks = {
     "central": "Центральный парк",
@@ -42,26 +42,57 @@ async def start(message: Message):
     ])
     await message.answer("Выберите парк:", reply_markup=kb)
 
+# Выбор парка
 @dp.callback_query(lambda c: c.data in parks)
 async def choose_park(callback: CallbackQuery, state: FSMContext):
     park_name = parks[callback.data]
     await state.update_data(park=park_name)
-    await callback.message.answer(f"Вы выбрали: **{park_name}**\n\nКратко опишите проблему:")
+
+    if callback.data == "vysota":
+        # Уточнение для Высоты
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="ПЛК 1", callback_data="vysota_plk1")],
+            [InlineKeyboardButton(text="Красный камень", callback_data="vysota_krasny")],
+            [InlineKeyboardButton(text="Комната матери и ребенка", callback_data="vysota_mother")]
+        ])
+        await callback.message.answer("Выберите в какой части парка:", reply_markup=kb)
+    else:
+        await callback.message.answer(f"Вы выбрали: **{park_name}**\n\nКратко опишите проблему:")
+        await state.set_state(Form.description)
+
+# Уточнение для Высоты
+@dp.callback_query(lambda c: c.data.startswith("vysota_"))
+async def vysota_location(callback: CallbackQuery, state: FSMContext):
+    loc = {"vysota_plk1": "ПЛК 1", "vysota_krasny": "Красный камень", "vysota_mother": "Комната матери и ребенка"}[callback.data]
+    await state.update_data(location=loc)
+    await callback.message.answer(f"Вы выбрали: **{loc}**\n\nКратко опишите проблему:")
     await state.set_state(Form.description)
 
+# Описание проблемы + кнопка "Без фото"
 @dp.message(Form.description)
 async def get_description(message: Message, state: FSMContext):
     await state.update_data(description=message.text)
-    await message.answer("Прикрепите фото проблемы (или напишите **«без фото»**):")
+    
+    kb = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="Без фото")]],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+    await message.answer("Прикрепите фото проблемы или нажмите кнопку ниже:", reply_markup=kb)
     await state.set_state(Form.photo)
 
+# Обработка фото или "Без фото"
 @dp.message(Form.photo)
 async def get_photo(message: Message, state: FSMContext):
     data = await state.get_data()
     park = data["park"]
     desc = data["description"]
+    location = data.get("location", "")
 
-    text = f"🚨 Новая заявка!\n\n🏞 Парк: {park}\n📝 Проблема: {desc}\n👤 От: {message.from_user.full_name}"
+    text = f"🚨 Новая заявка!\n\n🏞 Парк: {park}"
+    if location:
+        text += f"\n📍 Место: {location}"
+    text += f"\n📝 Проблема: {desc}\n👤 От: {message.from_user.full_name}"
 
     if message.photo:
         await bot.send_photo(GROUP_ID, message.photo[-1].file_id, caption=text)
@@ -81,3 +112,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+    
