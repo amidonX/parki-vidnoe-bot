@@ -20,6 +20,7 @@ class Form(StatesGroup):
     park = State()
     location = State()
     description = State()
+    photo = State()           # ← ОБЯЗАТЕЛЬНО ДОЛЖНО БЫТЬ
     done_comment = State()
 
 parks = {
@@ -47,7 +48,6 @@ async def start(message: Message):
     greeting = "Доброе утро" if 5 <= hour < 12 else "Добрый день" if 12 <= hour < 17 else "Добрый вечер" if 17 <= hour < 23 else "Доброй ночи"
     await message.answer(f"{greeting}!\n\nНажмите «🆕 Новый запрос», чтобы оставить заявку.", reply_markup=main_menu)
 
-# ==================== МЕНЮ ====================
 @dp.message(F.text == "🆕 Новый запрос")
 async def new_request(message: Message, state: FSMContext):
     await state.clear()
@@ -75,13 +75,13 @@ async def my_requests(message: Message):
 
 @dp.message(F.text == "📸 Без фото")
 async def no_photo(message: Message):
-    await message.answer("📸 Режим без фото активирован.\nНажмите «🆕 Новый запрос» и опишите проблему.")
+    await message.answer("📸 Режим без фото активирован.\nНажмите «🆕 Новый запрос».")
 
 @dp.message(F.text == "❓ Помощь")
 async def help_cmd(message: Message):
     await message.answer("🤖 **Как пользоваться:**\n\n🆕 Новый запрос — оставить заявку\n📋 Мои заявки — посмотреть обращения\n📸 Без фото — отправить без фотографии")
 
-# ==================== ОБРАБОТКА ЗАЯВКИ ====================
+# Выбор парка
 @dp.callback_query(lambda c: c.data in parks)
 async def choose_park(callback: CallbackQuery, state: FSMContext):
     park_name = parks[callback.data]
@@ -145,7 +145,7 @@ async def get_photo(message: Message, state: FSMContext):
     await message.answer("✅ Заявка отправлена!", reply_markup=main_menu)
     await state.clear()
 
-# ==================== ЗАКРЫТИЕ ЗАЯВКИ ====================
+# Закрытие заявки
 @dp.callback_query(lambda c: c.data.startswith("done_"))
 async def problem_done(callback: CallbackQuery, state: FSMContext):
     user_id = int(callback.data.split("_")[1])
