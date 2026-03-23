@@ -13,15 +13,16 @@ GROUP_ID = os.getenv("GROUP_ID")
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Хранилище заявок и закрытий
+# Хранилища
 user_requests = {}
-pending_done = {}
+pending_done = {}   # staff_id → user_id
 
 class Form(StatesGroup):
     park = State()
     location = State()
     description = State()
-    photo = State()
+    photo = State()           # ← ИСПРАВЛЕНО И ДОБАВЛЕНО
+    done_comment = State()    # для ответа о выполнении
 
 parks = {
     "central": "Центральный парк",
@@ -31,7 +32,6 @@ parks = {
     "vysota": "Лесопарк Высота"
 }
 
-# Главное меню
 main_menu = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🆕 Новый запрос")],
@@ -79,12 +79,12 @@ async def my_requests(message: Message):
 # Без фото
 @dp.message(F.text == "📸 Без фото")
 async def no_photo(message: Message):
-    await message.answer("📸 Режим без фото активирован.\nНажмите «🆕 Новый запрос» и опишите проблему.")
+    await message.answer("📸 Режим без фото активирован.\nНажмите «🆕 Новый запрос».")
 
 # Помощь
 @dp.message(F.text == "❓ Помощь")
 async def help_cmd(message: Message):
-    await message.answer("🤖 **Как пользоваться ботом:**\n\n🆕 Новый запрос — оставить заявку\n📋 Мои заявки — посмотреть ваши обращения\n📸 Без фото — отправить заявку без фото")
+    await message.answer("🤖 **Как пользоваться:**\n\n🆕 Новый запрос — оставить заявку\n📋 Мои заявки — посмотреть ваши обращения\n📸 Без фото — отправить заявку без фото")
 
 # Выбор парка
 @dp.callback_query(lambda c: c.data in parks)
@@ -151,7 +151,7 @@ async def get_photo(message: Message, state: FSMContext):
     else:
         await bot.send_message(GROUP_ID, text, reply_markup=kb)
 
-    await message.answer("✅ Заявка отправлена и сохранена!", reply_markup=main_menu)
+    await message.answer("✅ Заявка отправлена!", reply_markup=main_menu)
     await state.clear()
 
 # Закрытие заявки (комментарий + фото результата)
@@ -159,10 +159,10 @@ async def get_photo(message: Message, state: FSMContext):
 async def problem_done(callback: CallbackQuery, state: FSMContext):
     user_id = int(callback.data.split("_")[1])
     pending_done[callback.from_user.id] = user_id
-    await callback.message.answer("Напишите комментарий и/или прикрепите фото результата работ:")
-    await state.set_state(Form.description)
+    await callback.message.answer("Напишите комментарий о выполнении и/или прикрепите фото результата:")
+    await state.set_state(Form.done_comment)
 
-@dp.message(Form.description)
+@dp.message(Form.done_comment)
 async def get_done_comment(message: Message, state: FSMContext):
     staff_id = message.from_user.id
     user_id = pending_done.get(staff_id)
@@ -177,12 +177,12 @@ async def get_done_comment(message: Message, state: FSMContext):
     else:
         await bot.send_message(user_id, text)
 
-    await message.answer("✅ Уведомление отправлено автору.", reply_markup=main_menu)
+    await message.answer("✅ Уведомление отправлено автору заявки.", reply_markup=main_menu)
     await state.clear()
     pending_done.pop(staff_id, None)
 
 async def main():
-    print("🤖 Бот запущен!")
+    print("🤖 Бот запущен с функцией закрытия заявок + фото результата!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
