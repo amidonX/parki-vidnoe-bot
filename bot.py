@@ -16,6 +16,7 @@ dp = Dispatcher()
 class Form(StatesGroup):
     park = State()
     description = State()
+    photo = State()          # ←←← ЭТО БЫЛО ПРОПУЩЕНО
 
 parks = {
     "central": "Центральный парк",
@@ -29,9 +30,9 @@ parks = {
 async def start(message: Message):
     hour = datetime.now().hour
     greeting = "Доброе утро" if 5 <= hour < 12 else "Добрый день" if 12 <= hour < 17 else "Добрый вечер" if 17 <= hour < 23 else "Доброй ночи"
-
-    await message.answer(f"{greeting}!\n\nРады вас приветствовать в сервисном боте Парков города Видное.\n\nЕсли вы обнаружили проблему (туалетный модуль, грязь, мусор, отсутствие воды и т.д.), пожалуйста, напишите нам.")
-
+    
+    await message.answer(f"{greeting}!\n\nРады вас приветствовать в сервисном боте Парков города Видное.\n\nЕсли вы обнаружили проблему, пожалуйста, напишите нам.")
+    
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Центральный парк", callback_data="central")],
         [InlineKeyboardButton(text="Лесопарк Апаринки", callback_data="aparinki")],
@@ -52,7 +53,7 @@ async def choose_park(callback: CallbackQuery, state: FSMContext):
 async def get_description(message: Message, state: FSMContext):
     await state.update_data(description=message.text)
     await message.answer("Прикрепите фото проблемы (или напишите «без фото»):")
-    await state.set_state(Form.photo)  # дальше обработаем в следующем сообщении
+    await state.set_state(Form.photo)
 
 @dp.message(Form.photo)
 async def get_photo(message: Message, state: FSMContext):
