@@ -20,7 +20,6 @@ class Form(StatesGroup):
     park = State()
     location = State()
     description = State()
-    photo = State()
 
 parks = {
     "central": "Центральный парк",
